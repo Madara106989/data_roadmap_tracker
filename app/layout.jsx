@@ -1,4 +1,5 @@
-// app/layout.jsx
+import "./globals.css";
+
 export const metadata = {
   title: "Data Roadmap Tracker",
   description: "Daily roadmap tracker for data science journey",

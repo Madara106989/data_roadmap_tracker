@@ -16,7 +16,11 @@ import {
 
 // Simple UI primitives (black theme)
 function Card({ className = "", children }) {
-  return <div className={`rounded-xl bg-zinc-900 border border-zinc-800 ${className}`}>{children}</div>;
+  return (
+    <div className={`rounded-xl bg-zinc-900 border border-zinc-800 ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 function CardContent({ className = "", children }) {
@@ -88,7 +92,6 @@ export default function Ikimashou() {
   const today = new Date().toISOString().split("T")[0];
   const monthKey = today.slice(0, 7);
 
-  // initial load from localStorage
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("roadmapData")) || {};
     const currentPhase = stored.phase || "ANALYST";
@@ -102,7 +105,6 @@ export default function Ikimashou() {
     setIsReady(true);
   }, [today]);
 
-  // persist to localStorage
   useEffect(() => {
     if (!isReady) return;
     const data = JSON.parse(localStorage.getItem("roadmapData")) || {};
@@ -186,18 +188,15 @@ export default function Ikimashou() {
           </p>
           <p>
             Today:{" "}
-            <span className="font-mono text-zinc-300">
-              {today}
-            </span>
+            <span className="font-mono text-zinc-300">{today}</span>
           </p>
         </div>
       </header>
 
       {/* MAIN GRID: LEFT TASKS, RIGHT GRAPHS */}
-      <div className="grid gap-6 lg:grid-cols-[2fr,1.5fr]">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-[2fr,1.5fr]">
         {/* LEFT COLUMN */}
         <div className="space-y-6">
-          {/* Phase card */}
           <Card>
             <CardContent className="p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -231,7 +230,6 @@ export default function Ikimashou() {
             </CardContent>
           </Card>
 
-          {/* Today's tasks */}
           <Card>
             <CardContent className="p-4">
               <h2 className="text-xl font-semibold mb-3">Today&apos;s Tasks</h2>
@@ -266,7 +264,6 @@ export default function Ikimashou() {
             </CardContent>
           </Card>
 
-          {/* Daily progress */}
           <Card>
             <CardContent className="p-4 space-y-3">
               <h2 className="text-xl font-semibold">Daily Progress</h2>
@@ -293,7 +290,7 @@ export default function Ikimashou() {
           </Card>
         </div>
 
-        {/* RIGHT COLUMN: CHARTS */}
+        {/* RIGHT COLUMN */}
         <div className="space-y-6">
           <Card>
             <CardContent className="p-4">
@@ -308,7 +305,7 @@ export default function Ikimashou() {
                     outerRadius={80}
                     innerRadius={50}
                   >
-                    {pieData.map((entry, index) => (
+                    {pieData.map((_, index) => (
                       <Cell
                         key={index}
                         fill={index === 0 ? "#22c55e" : "#27272a"}
@@ -387,8 +384,7 @@ export default function Ikimashou() {
 
             {monthBarData.length === 0 ? (
               <p className="text-sm text-zinc-500 mt-4">
-                No data for this month yet. Start completing tasks to see your
-                streak chart here.
+                No data for this month yet.
               </p>
             ) : (
               <div className="overflow-x-auto">
