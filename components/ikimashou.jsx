@@ -92,6 +92,7 @@ export default function Ikimashou() {
   const today = new Date().toISOString().split("T")[0];
   const monthKey = today.slice(0, 7);
 
+  // initial load
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("roadmapData")) || {};
     const currentPhase = stored.phase || "ANALYST";
@@ -105,6 +106,7 @@ export default function Ikimashou() {
     setIsReady(true);
   }, [today]);
 
+  // persist changes
   useEffect(() => {
     if (!isReady) return;
     const data = JSON.parse(localStorage.getItem("roadmapData")) || {};
@@ -162,6 +164,23 @@ export default function Ikimashou() {
     day: date.slice(-2),
     hours: v.hours || 0,
   }));
+
+  // calendar-like history for current month
+  const monthHistory = monthEntries.map(([date, v]) => {
+    const completedForDay = Object.values(v.completed || {}).filter(Boolean)
+      .length;
+    const totalTasks = PHASE_TASKS[phase].length;
+    const pct =
+      totalTasks === 0 ? 0 : Math.round((completedForDay / totalTasks) * 100);
+    return {
+      date,
+      day: date.slice(-2),
+      hours: v.hours || 0,
+      completedForDay,
+      totalTasks,
+      pct,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-black text-white p-6 space-y-6">
@@ -365,7 +384,7 @@ export default function Ikimashou() {
         </div>
       </div>
 
-      {/* BOTTOM: MONTHLY PROGRESS */}
+      {/* BOTTOM: MONTHLY PROGRESS BAR CHART */}
       <section className="mt-2">
         <Card>
           <CardContent className="p-4">
@@ -415,6 +434,51 @@ export default function Ikimashou() {
                     radius={[3, 3, 0, 0]}
                   />
                 </BarChart>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* SMALL CALENDAR / MONTH HISTORY */}
+      <section className="mt-4">
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="text-lg font-semibold mb-2">
+              📘 This Month at a Glance
+            </h2>
+
+            {monthHistory.length === 0 ? (
+              <p className="text-sm text-zinc-500">
+                No days tracked yet for this month.
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 text-xs">
+                {monthHistory.map((d) => (
+                  <div
+                    key={d.date}
+                    className={`rounded-lg border p-2 flex flex-col gap-1 ${
+                      d.pct === 0
+                        ? "border-zinc-800 bg-zinc-950/70"
+                        : d.pct >= 80
+                        ? "border-green-500/70 bg-green-500/10"
+                        : "border-blue-500/60 bg-blue-500/10"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-zinc-200">{d.day}</span>
+                      <span className="text-[10px] text-zinc-400">
+                        {d.pct}% done
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-zinc-300">
+                      {d.hours.toFixed(1)}h
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      {d.completedForDay}/{d.totalTasks} tasks
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
