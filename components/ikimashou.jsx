@@ -1,489 +1,308 @@
-// components/ikimashou.jsx
 "use client";
 
 import { useEffect, useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { CheckCircle2 } from "lucide-react";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
-  Tooltip,
+  Tooltip
 } from "recharts";
 
-// Simple UI primitives (black theme)
-function Card({ className = "", children }) {
-  return (
-    <div className={`rounded-xl bg-zinc-900 border border-zinc-800 ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function CardContent({ className = "", children }) {
-  return <div className={className}>{children}</div>;
-}
-
-function Button({ className = "", onClick, children }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-3 py-1 rounded text-sm font-medium bg-zinc-900 border border-zinc-700 hover:border-zinc-500 transition ${className}`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Progress({ value, className = "" }) {
-  return (
-    <div className={`w-full h-2 rounded bg-zinc-800 overflow-hidden ${className}`}>
-      <div
-        className="h-2 rounded bg-green-500 transition-all"
-        style={{ width: `${value}%` }}
-      />
-    </div>
-  );
-}
+const PHASE_ORDER = ["ANALYST", "ADV_ANALYST", "DATA_SCIENTIST"];
 
 const PHASES = {
   ANALYST: "Analyst Foundation",
   ADV_ANALYST: "Advanced Analyst",
-  DATA_SCIENTIST: "Data Scientist",
+  DATA_SCIENTIST: "Data Scientist"
 };
 
-const PHASE_TASKS = {
+const DEFAULT_TASKS = {
   ANALYST: [
-    { id: 1, name: "Python (Pandas / NumPy)", hrs: 0.5 },
-    { id: 2, name: "SQL (Core Queries)", hrs: 0.5 },
-    { id: 3, name: "Statistics Basics", hrs: 0.3 },
-    { id: 4, name: "Data Visualization / BI", hrs: 0.3 },
-    { id: 5, name: "Mini Analysis Project", hrs: 0.5 },
-    { id: 6, name: "DSA (Arrays / Strings)", hrs: 0.3 },
+    { id: 1, name: "Python (Pandas / NumPy)", hrs: 2 },
+    { id: 2, name: "SQL Practice", hrs: 2 }
   ],
   ADV_ANALYST: [
-    { id: 1, name: "Advanced SQL / Windows", hrs: 0.7 },
-    { id: 2, name: "Feature Engineering", hrs: 0.6 },
-    { id: 3, name: "Business Case Analysis", hrs: 0.6 },
-    { id: 4, name: "Dashboard Project", hrs: 0.8 },
-    { id: 5, name: "Python Optimization", hrs: 0.5 },
-    { id: 6, name: "DSA (Hashing / Two Pointer)", hrs: 0.3 },
+    { id: 1, name: "Advanced SQL", hrs: 2 },
+    { id: 2, name: "Feature Engineering", hrs: 2 }
   ],
   DATA_SCIENTIST: [
-    { id: 1, name: "Machine Learning Models", hrs: 1 },
-    { id: 2, name: "Model Evaluation", hrs: 0.7 },
-    { id: 3, name: "End-to-End ML Project", hrs: 1.5 },
-    { id: 4, name: "Deployment (Streamlit/Flask)", hrs: 0.8 },
-    { id: 5, name: "Research / Reading", hrs: 0.5 },
-    { id: 6, name: "DSA (Interview Revision)", hrs: 0.3 },
-  ],
+    { id: 1, name: "ML Models", hrs: 3 },
+    { id: 2, name: "End-to-End Project", hrs: 3 }
+  ]
 };
 
-export default function Ikimashou() {
-  const [isReady, setIsReady] = useState(false);
-  const [phase, setPhase] = useState("ANALYST");
-  const [completed, setCompleted] = useState({});
-  const [streak, setStreak] = useState(0);
-  const [hours, setHours] = useState(0);
-
+export default function Page() {
   const today = new Date().toISOString().split("T")[0];
   const monthKey = today.slice(0, 7);
 
-  // initial load
-  useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem("roadmapData")) || {};
-    const currentPhase = stored.phase || "ANALYST";
-    const todayCompleted = stored[today]?.completed || {};
-    const todayHours = stored[today]?.hours || 0;
+  const stored =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("roadmapData")) || {}
+      : {};
 
-    setPhase(currentPhase);
-    setCompleted(todayCompleted);
-    setStreak(stored.streak || 0);
-    setHours(todayHours);
-    setIsReady(true);
-  }, [today]);
+  const [phase, setPhase] = useState(stored.phase || "ANALYST");
+  const [tasksByPhase, setTasksByPhase] = useState(
+    stored.tasksByPhase || DEFAULT_TASKS
+  );
+  const [completed, setCompleted] = useState(
+    stored[today]?.completed || {}
+  );
+  const [hours, setHours] = useState(stored[today]?.hours || 0);
+  const [streak, setStreak] = useState(stored.streak || 0);
 
-  // persist changes
+  const [newTaskName, setNewTaskName] = useState("");
+  const [newTaskHours, setNewTaskHours] = useState("");
+  const [editingTaskId, setEditingTaskId] = useState(null);
+
+  const tasks = tasksByPhase[phase];
+
   useEffect(() => {
-    if (!isReady) return;
-    const data = JSON.parse(localStorage.getItem("roadmapData")) || {};
-    data[today] = { completed, hours };
+    const data =
+      JSON.parse(localStorage.getItem("roadmapData")) || {};
+    data[today] = {
+      completed,
+      hours,
+      progress:
+        Object.values(completed).filter(Boolean).length /
+        tasks.length
+    };
     data.phase = phase;
     data.streak = streak;
+    data.tasksByPhase = tasksByPhase;
     localStorage.setItem("roadmapData", JSON.stringify(data));
-  }, [completed, phase, streak, hours, today, isReady]);
-
-  if (!isReady) {
-    return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
-        <p className="text-sm text-zinc-400">Loading your roadmap…</p>
-      </div>
-    );
-  }
-
-  const stored = JSON.parse(localStorage.getItem("roadmapData")) || {};
-  const tasks = PHASE_TASKS[phase];
+  }, [completed, hours, phase, streak, tasksByPhase]);
 
   const toggleTask = (task) => {
     setCompleted((prev) => {
       const updated = { ...prev, [task.id]: !prev[task.id] };
-      setHours((h) => (prev[task.id] ? h - task.hrs : h + task.hrs));
+      setHours((h) =>
+        prev[task.id] ? h - task.hrs : h + task.hrs
+      );
       return updated;
     });
   };
 
-  const completedCount = Object.values(completed).filter(Boolean).length;
-  const progress = Math.round((completedCount / tasks.length) * 100);
+  const addTask = () => {
+    if (!newTaskName || !newTaskHours) return;
 
-  const pieData = [
-    { name: "Completed", value: completedCount },
-    { name: "Remaining", value: tasks.length - completedCount },
-  ];
+    const newTask = {
+      id: Date.now(),
+      name: newTaskName,
+      hrs: parseFloat(newTaskHours)
+    };
 
-  const barData = tasks.map((t) => ({
-    name: t.name,
-    done: completed[t.id] ? 1 : 0,
-  }));
+    setTasksByPhase((prev) => ({
+      ...prev,
+      [phase]: [...prev[phase], newTask]
+    }));
 
-  const endDay = () => {
-    setStreak(completedCount > 0 ? streak + 1 : 0);
+    setNewTaskName("");
+    setNewTaskHours("");
   };
+
+  const startEdit = (task) => {
+    setEditingTaskId(task.id);
+    setNewTaskName(task.name);
+    setNewTaskHours(task.hrs);
+  };
+
+  const saveEdit = () => {
+    setTasksByPhase((prev) => ({
+      ...prev,
+      [phase]: prev[phase].map((t) =>
+        t.id === editingTaskId
+          ? {
+              ...t,
+              name: newTaskName,
+              hrs: parseFloat(newTaskHours)
+            }
+          : t
+      )
+    }));
+    setEditingTaskId(null);
+    setNewTaskName("");
+    setNewTaskHours("");
+  };
+
+  const deleteTask = (id) => {
+    setTasksByPhase((prev) => ({
+      ...prev,
+      [phase]: prev[phase].filter((t) => t.id !== id)
+    }));
+  };
+
+  const completedCount =
+    Object.values(completed).filter(Boolean).length;
+  const progress = Math.round(
+    (completedCount / tasks.length) * 100
+  );
 
   const monthlyHours = Object.entries(stored)
     .filter(([k]) => k.startsWith(monthKey))
     .reduce((sum, [, v]) => sum + (v.hours || 0), 0);
 
-  const monthEntries = Object.entries(stored)
-    .filter(([k]) => k.startsWith(monthKey))
-    .sort(([a], [b]) => (a > b ? 1 : -1));
-
-  const monthBarData = monthEntries.map(([date, v]) => ({
-    day: date.slice(-2),
-    hours: v.hours || 0,
-  }));
-
-  // calendar-like history for current month
-  const monthHistory = monthEntries.map(([date, v]) => {
-    const completedForDay = Object.values(v.completed || {}).filter(Boolean)
-      .length;
-    const totalTasks = PHASE_TASKS[phase].length;
-    const pct =
-      totalTasks === 0 ? 0 : Math.round((completedForDay / totalTasks) * 100);
+  const last7Days = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split("T")[0];
     return {
-      date,
-      day: date.slice(-2),
-      hours: v.hours || 0,
-      completedForDay,
-      totalTasks,
-      pct,
+      date: key.slice(5),
+      hours: stored[key]?.hours || 0
     };
-  });
+  }).reverse();
+
+  const avg7 =
+    last7Days.reduce((a, b) => a + b.hours, 0) / 7;
+
+  const burnout = avg7 > 5;
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 space-y-6">
-      {/* HEADER */}
-      <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Data Roadmap Tracker</h1>
-          <p className="text-sm text-zinc-400">
-            Plan, execute, and visualize your data career progress.
-          </p>
-        </div>
-        <div className="text-xs text-right text-zinc-400 space-y-1">
-          <p>
-            Phase:{" "}
-            <span className="text-blue-400 font-semibold">
+    <div className="min-h-screen bg-black text-white p-6 grid gap-6">
+      <h1 className="text-3xl font-bold">
+        Data Career Tracker
+      </h1>
+
+      <Card className="bg-zinc-900 border border-zinc-800">
+        <CardContent className="p-4 flex justify-between">
+          <div>
+            <p>Phase</p>
+            <p className="text-zinc-400">
               {PHASES[phase]}
-            </span>
-          </p>
-          <p>
-            Streak:{" "}
-            <span className="text-green-400 font-semibold">
-              {streak} days 🔥
-            </span>
-          </p>
-          <p>
-            Today:{" "}
-            <span className="font-mono text-zinc-300">{today}</span>
-          </p>
-        </div>
-      </header>
+            </p>
+          </div>
+          <select
+            value={phase}
+            onChange={(e) =>
+              setPhase(e.target.value)
+            }
+            className="bg-black border p-2"
+          >
+            {Object.keys(PHASES).map((p) => (
+              <option key={p} value={p}>
+                {PHASES[p]}
+              </option>
+            ))}
+          </select>
+        </CardContent>
+      </Card>
 
-      {/* MAIN GRID: LEFT TASKS, RIGHT GRAPHS */}
-      <div className="grid gap-6 grid-cols-1 md:grid-cols-[2fr,1.5fr]">
-        {/* LEFT COLUMN */}
-        <div className="space-y-6">
-          <Card>
-            <CardContent className="p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-zinc-500">
-                  Current Phase
-                </p>
-                <p className="text-lg font-semibold">{PHASES[phase]}</p>
-                <p className="text-xs text-zinc-400 mt-1">
-                  {tasks.length} focused tasks scheduled for today.
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-2">
-                <select
-                  value={phase}
-                  onChange={(e) => setPhase(e.target.value)}
-                  className="bg-black border border-zinc-700 text-sm px-3 py-2 rounded outline-none"
+      <Card className="bg-zinc-900 border border-zinc-800">
+        <CardContent className="p-4 flex gap-2">
+          <input
+            type="text"
+            placeholder="Task Name"
+            value={newTaskName}
+            onChange={(e) =>
+              setNewTaskName(e.target.value)
+            }
+            className="bg-black border p-2"
+          />
+          <input
+            type="number"
+            placeholder="Hours"
+            value={newTaskHours}
+            onChange={(e) =>
+              setNewTaskHours(e.target.value)
+            }
+            className="bg-black border p-2 w-24"
+          />
+          {editingTaskId ? (
+            <Button onClick={saveEdit}>
+              Save
+            </Button>
+          ) : (
+            <Button onClick={addTask}>
+              Add
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="bg-zinc-900 border border-zinc-800">
+        <CardContent className="p-4 grid gap-2">
+          {tasks.map((task) => (
+            <div
+              key={task.id}
+              className="flex justify-between border p-2"
+            >
+              <span>
+                {task.name} ({task.hrs}h)
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() =>
+                    toggleTask(task)
+                  }
                 >
-                  {Object.keys(PHASES).map((p) => (
-                    <option key={p} value={p}>
-                      {PHASES[p]}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-zinc-500">
-                  Hours today:{" "}
-                  <span className="text-blue-400 font-semibold">
-                    {hours.toFixed(1)}h
-                  </span>
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <h2 className="text-xl font-semibold mb-3">Today&apos;s Tasks</h2>
-              <div className="space-y-2">
-                {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="flex justify-between items-center border border-zinc-800 bg-zinc-950/60 p-2 rounded-lg"
-                  >
-                    <div>
-                      <p className="text-sm font-medium">{task.name}</p>
-                      <p className="text-xs text-zinc-500">
-                        {task.hrs}h • ID {task.id}
-                      </p>
-                    </div>
-                    <Button
-                      className={
-                        completed[task.id]
-                          ? "bg-green-600 border-green-500 text-black"
-                          : ""
-                      }
-                      onClick={() => toggleTask(task)}
-                    >
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 className="w-4 h-4 text-green-400" />
-                        {completed[task.id] ? "Done" : "Mark"}
-                      </span>
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <h2 className="text-xl font-semibold">Daily Progress</h2>
-              <Progress value={progress} />
-              <p className="text-sm text-zinc-300">
-                {progress}% completed •{" "}
-                <span className="text-blue-400 font-semibold">
-                  {hours.toFixed(1)} hrs
-                </span>{" "}
-                logged today
-              </p>
-              <div className="flex items-center justify-between text-xs text-zinc-500">
-                <p>
-                  Completed tasks:{" "}
-                  <span className="text-green-400 font-semibold">
-                    {completedCount}/{tasks.length}
-                  </span>
-                </p>
-                <Button className="bg-green-600 text-black" onClick={endDay}>
-                  End Day
+                  <CheckCircle2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  onClick={() =>
+                    startEdit(task)
+                  }
+                >
+                  Edit
+                </Button>
+                <Button
+                  onClick={() =>
+                    deleteTask(task.id)
+                  }
+                >
+                  Delete
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="space-y-6">
-          <Card>
-            <CardContent className="p-4">
-              <h2 className="text-lg font-semibold mb-3">
-                Today&apos;s Overview
-              </h2>
-              <div className="flex justify-center">
-                <PieChart width={260} height={220}>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    outerRadius={80}
-                    innerRadius={50}
-                  >
-                    {pieData.map((_, index) => (
-                      <Cell
-                        key={index}
-                        fill={index === 0 ? "#22c55e" : "#27272a"}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#09090b",
-                      border: "1px solid #3f3f46",
-                      borderRadius: "0.5rem",
-                    }}
-                  />
-                </PieChart>
-              </div>
-              <div className="flex justify-center gap-4 text-xs text-zinc-400">
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-sm bg-green-500" /> Completed
-                </span>
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 rounded-sm bg-zinc-700" /> Remaining
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-4">
-              <h2 className="text-lg font-semibold mb-3">
-                Task Completion (Today)
-              </h2>
-              <BarChart width={360} height={220} data={barData}>
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 10, fill: "#a1a1aa" }}
-                  tickLine={{ stroke: "#52525b" }}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: "#a1a1aa" }}
-                  tickLine={{ stroke: "#52525b" }}
-                  domain={[0, 1]}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#09090b",
-                    border: "1px solid #3f3f46",
-                    borderRadius: "0.5rem",
-                  }}
-                />
-                <Bar dataKey="done" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-              </BarChart>
-              <p className="mt-2 text-xs text-zinc-500">
-                Each bar shows whether a task is done (1) or not (0) today.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* BOTTOM: MONTHLY PROGRESS BAR CHART */}
-      <section className="mt-2">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2">
-              <div>
-                <h2 className="text-xl font-semibold">📅 Monthly Progress</h2>
-                <p className="text-xs text-zinc-400">
-                  {monthBarData.length} days tracked in {monthKey} •{" "}
-                  <span className="text-blue-400 font-semibold">
-                    {monthlyHours.toFixed(1)} hrs
-                  </span>{" "}
-                  total
-                </p>
-              </div>
             </div>
+          ))}
+        </CardContent>
+      </Card>
 
-            {monthBarData.length === 0 ? (
-              <p className="text-sm text-zinc-500 mt-4">
-                No data for this month yet.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <BarChart
-                  width={Math.max(600, monthBarData.length * 24)}
-                  height={200}
-                  data={monthBarData}
-                >
-                  <XAxis
-                    dataKey="day"
-                    tick={{ fontSize: 10, fill: "#a1a1aa" }}
-                    tickLine={{ stroke: "#52525b" }}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: "#a1a1aa" }}
-                    tickLine={{ stroke: "#52525b" }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "#09090b",
-                      border: "1px solid #3f3f46",
-                      borderRadius: "0.5rem",
-                    }}
-                  />
-                  <Bar
-                    dataKey="hours"
-                    fill="#22c55e"
-                    radius={[3, 3, 0, 0]}
-                  />
-                </BarChart>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+      <Card className="bg-zinc-900 border border-zinc-800">
+        <CardContent className="p-4">
+          <Progress value={progress} />
+          <p>
+            {progress}% | {hours.toFixed(1)}h
+            today
+          </p>
+          {burnout && (
+            <p className="text-red-400">
+              Burnout Risk (7-day avg &gt; 5h)
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* SMALL CALENDAR / MONTH HISTORY */}
-      <section className="mt-4">
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="text-lg font-semibold mb-2">
-              📘 This Month at a Glance
-            </h2>
+      <Card className="bg-zinc-900 border border-zinc-800">
+        <CardContent className="p-4">
+          <LineChart
+            width={400}
+            height={250}
+            data={last7Days}
+          >
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="hours"
+              stroke="#2563eb"
+            />
+          </LineChart>
+        </CardContent>
+      </Card>
 
-            {monthHistory.length === 0 ? (
-              <p className="text-sm text-zinc-500">
-                No days tracked yet for this month.
-              </p>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2 text-xs">
-                {monthHistory.map((d) => (
-                  <div
-                    key={d.date}
-                    className={`rounded-lg border p-2 flex flex-col gap-1 ${
-                      d.pct === 0
-                        ? "border-zinc-800 bg-zinc-950/70"
-                        : d.pct >= 80
-                        ? "border-green-500/70 bg-green-500/10"
-                        : "border-blue-500/60 bg-blue-500/10"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-zinc-200">{d.day}</span>
-                      <span className="text-[10px] text-zinc-400">
-                        {d.pct}% done
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-zinc-300">
-                      {d.hours.toFixed(1)}h
-                    </span>
-                    <span className="text-[10px] text-zinc-500">
-                      {d.completedForDay}/{d.totalTasks} tasks
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+      <Card className="bg-zinc-900 border border-zinc-800">
+        <CardContent className="p-4">
+          Monthly Hours:{" "}
+          <span className="font-bold">
+            {monthlyHours.toFixed(1)}h
+          </span>
+        </CardContent>
+      </Card>
     </div>
   );
 }
